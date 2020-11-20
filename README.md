@@ -1,4 +1,4 @@
-# WMN_screenshotter
+# WMN_screenshooter
 
 This is a helper script that makes use of the great [WhatsMyName](https://github.com/WebBreacher/WhatsMyName) project and adds a bit more functionality to one of the demo scripts that are provided there.
 
@@ -28,4 +28,4 @@ This should install all necessary dependencies. It could be recommended to try a
 
 When you run the script you need to specify the full path to, including the file name, to the Json file as well as the username you're investigating as per this:
 
-`python3 ./WMN_screenshotter.py -c /opt/WhatsMyName/web_accounts_list.json -u covfefe`
+`python3 ./WMN_screenshooter.py -c /opt/WhatsMyName/web_accounts_list.json -u covfefe`
