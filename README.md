@@ -26,6 +26,6 @@ This should install all necessary dependencies. It could be recommended to try a
 
 ## Usage
 
-When you run the script you need to specify the full path to, including the file name, to the Json file as well as the username you're investigating as per this:
+When you run the script you need to specify the full path to the Json file from WhatsMyName, including the filename, as well as the username you're investigating as per this:
 
 `python3 ./WMN_screenshooter.py -c /opt/WhatsMyName/web_accounts_list.json -u covfefe`
