@@ -110,7 +110,6 @@ if check_os() == "posix":
 
 # if we are windows or something like that then define colors as nothing
 else:
-
     class bcolors:
         CYAN = ""
         GREEN = ""
@@ -135,7 +134,7 @@ def web_call(location):
     try:
         # Make web request for that URL, timeout in X secs and don't verify SSL/TLS certs
         resp = requests.get(
-            location, headers=headers, timeout=60, verify=False, allow_redirects=False, 
+            location, headers=headers, timeout=10, verify=False, allow_redirects=False, 
         )
     except requests.exceptions.Timeout:
         return (
@@ -193,16 +192,17 @@ def validate_site(site):
     if isinstance(r, str):
         # We got an error on the web call
         print(r)
+    
+    else:
+        # Analyze the responses against what they should be
+        code_match = r.status_code == int(site["account_existence_code"])
+        string_match = r.text.find(site["account_existence_string"]) >= 0
 
-    # Analyze the responses against what they should be
-    code_match = r.status_code == int(site["account_existence_code"])
-    string_match = r.text.find(site["account_existence_string"]) >= 0
-
-    if args.username:
-        if code_match and string_match:
-            print(bcolors.GREEN + "[+] Found user at %s" % url + bcolors.ENDC)
-            all_found_sites.append(url)
-            # continue
+        if args.username:
+            if code_match and string_match:
+                print(bcolors.GREEN + "[+] Found user at %s" % url + bcolors.ENDC)
+                all_found_sites.append(url)
+                # continue
 
 def set_up_threads_sitechecks(data):
     for site in data['sites']:
@@ -216,7 +216,7 @@ def set_up_threads_sitechecks(data):
         thread.join()
 
 def grab_screenshots(all_found_sites):
-    print("Trying to capture screenshot(s) from the identified site(s) now.")
+    print(bcolors.GREEN + "\nTrying to capture screenshot(s) from the identified site(s) now." + bcolors.ENDC)
     options = webdriver.ChromeOptions()
     options.add_argument("headless")
     options.add_argument("window-size=1920x1080")
@@ -227,14 +227,14 @@ def grab_screenshots(all_found_sites):
     )
 
     try:
-        print(bcolors.GREEN + 'The screenshots will be stored in ', image_directory + bcolors.ENDC)
+        print(bcolors.GREEN + 'The screenshots will be stored in ' + bcolors.ENDC + bcolors.CYAN + image_directory + bcolors.ENDC)
         os.makedirs(image_directory)
     except OSError as e:
         if e.errno != errno.EEXIST:
             raise  # This was not a "directory exist" error..
 
     for site in all_found_sites:
-        print(bcolors.GREEN + "Trying: ", site + bcolors.ENDC)
+        print(bcolors.GREEN + "Capturing: ", site + bcolors.ENDC)
         filename = (
             remove_url.sub("", site)
             .replace("/", "")
@@ -268,7 +268,7 @@ def main():
     if all_found_sites:
         grab_screenshots(all_found_sites)
     else:
-        print('No sites found')
+        print(bcolors.YELLOW + 'No sites found' + bcolors.ENDC)
 
 if __name__ == "__main__":
     main()

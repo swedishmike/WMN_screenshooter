@@ -237,13 +237,14 @@ if all_found_sites:
     )
 
     try:
+        print(bcolors.GREEN + 'The screenshots will be stored in ' + bcolors.ENDC + bcolors.CYAN + image_directory + bcolors.ENDC)
         os.makedirs(image_directory)
     except OSError as e:
         if e.errno != errno.EEXIST:
             raise  # This was not a "directory exist" error..
 
     for site in all_found_sites:
-        print(bcolors.GREEN + "Trying: ", site + bcolors.ENDC)
+        print(bcolors.GREEN + "Capturing: ", site + bcolors.ENDC)
         filename = (
             remove_url.sub("", site)
             .replace("/", "")
