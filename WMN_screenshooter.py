@@ -3,7 +3,7 @@
 """
     Author : Micah Hoffman (@WebBreacher)
     Additions by: Mike Eriksson (@swedishmike)
-    Description : Takes each username from the web_accounts_list.json file and performs the lookup to see if the entry is still valid and tries to take a screenshot of the valid ones. 
+    Description : Takes each username from the web_accounts_list.json file and performs the lookup to see if the entry is still valid and tries to take a screenshot of the valid ones.
 
 """
 import argparse
@@ -64,6 +64,12 @@ parser.add_argument(
     "--config",
     help="The full path to the web_accounts_list.json file",
     required=True,
+)
+parser.add_argument(
+    "-t",
+    "--timeout",
+    help="The amount of seconds the script will wait for a site to respond.",
+    default=10,
 )
 args = parser.parse_args()
 
@@ -127,7 +133,11 @@ def web_call(location):
     try:
         # Make web request for that URL, timeout in X secs and don't verify SSL/TLS certs
         resp = requests.get(
-            location, headers=headers, timeout=60, verify=False, allow_redirects=False
+            location,
+            headers=headers,
+            timeout=args.timeout,
+            verify=False,
+            allow_redirects=False,
         )
     except requests.exceptions.Timeout:
         return (
@@ -145,6 +155,13 @@ def web_call(location):
         return bcolors.RED + "      ! ERROR: CRITICAL ERROR. %s" % e + bcolors.ENDC
     else:
         return resp
+
+
+def random_string(length):
+    return "".join(
+        random.choice(string.ascii_lowercase + string.ascii_uppercase + string.digits)
+        for x in range(length)
+    )
 
 
 def finaloutput():
@@ -181,6 +198,24 @@ except:
     sys.exit(1)
 
 
+if args.site:
+    # cut the list of sites down to only the requested ones
+    args.site = [x.lower() for x in args.site]
+    data["sites"] = [x for x in data["sites"] if x["name"].lower() in args.site]
+    if len(data["sites"]) == 0:
+        print(" -  Sorry, the requested site or sites were not found in the list")
+        sys.exit()
+    sites_not_found = len(args.site) - len(data["sites"])
+    if sites_not_found:
+        print(
+            " -  WARNING: %d requested sites were not found in the list"
+            % sites_not_found
+        )
+    print(" -  Checking %d sites" % len(data["sites"]))
+else:
+    print(" -  %s sites found in file." % len(data["sites"]))
+
+
 for site in data["sites"]:
     code_match, string_match = False, False
     # Examine the current validity of the entry
@@ -202,10 +237,16 @@ for site in data["sites"]:
     # Perform initial lookup
     # Pull the first user from known_accounts and replace the {account} with it
     url_list = []
-    url = site["check_uri"].replace("{account}", args.username)
-    url_list.append(url)
-    uname = args.username
-
+    if args.username:
+        url = site["check_uri"].replace("{account}", args.username)
+        url_list.append(url)
+        uname = args.username
+    else:
+        account_list = site["known_accounts"]
+        for each in account_list:
+            url = site["check_uri"].replace("{account}", each)
+            url_list.append(url)
+            uname = each
     for each in url_list:
         print(" -  Looking up %s" % each)
         r = web_call(each)
@@ -224,6 +265,73 @@ for site in data["sites"]:
                 all_found_sites.append(each)
             continue
 
+        if code_match and string_match:
+            # print('     [+] Response code and Search Strings match expected.')
+            # Generate a random string to use in place of known_accounts
+            url_fp = site["check_uri"].replace("{account}", random_string(20))
+            r_fp = web_call(url_fp)
+            if isinstance(r_fp, str):
+                # If this is a string then web got an error
+                print(r_fp)
+                continue
+
+            code_match = r_fp.status_code == int(site["account_existence_code"])
+            string_match = r_fp.text.find(site["account_existence_string"]) > 0
+
+            if code_match and string_match:
+                print("      -  Code: %s; String: %s" % (code_match, string_match))
+                print(
+                    bcolors.RED
+                    + "      !  ERROR: FALSE POSITIVE DETECTED. Response code and Search Strings match "
+                    "expected." + bcolors.ENDC
+                )
+                # TODO set site['valid'] = False
+                overall_results[site["name"]] = "False Positive"
+            else:
+                # print('     [+] Passed false positives test.')
+                pass
+        elif code_match and not string_match:
+            # TODO set site['valid'] = False
+            print(
+                bcolors.RED
+                + '      !  ERROR: BAD DETECTION STRING. "%s" was not found on resulting page.'
+                % site["account_existence_string"]
+                + bcolors.ENDC
+            )
+            overall_results[site["name"]] = "Bad detection string."
+            if args.stringerror:
+                file_name = "se-" + site["name"] + "." + uname
+                # Unicode sucks
+                file_name = file_name.encode("ascii", "ignore").decode("ascii")
+                error_file = codecs.open(file_name, "w", "utf-8")
+                error_file.write(r.text)
+                print("Raw data exported to file:" + file_name)
+                error_file.close()
+
+        elif not code_match and string_match:
+            # TODO set site['valid'] = False
+            print(
+                bcolors.RED
+                + "      !  ERROR: BAD DETECTION RESPONSE CODE. HTTP Response code different than "
+                "expected." + bcolors.ENDC
+            )
+            overall_results[
+                site["name"]
+            ] = "Bad detection code. Received Code: %s; Expected Code: %s." % (
+                str(r.status_code),
+                site["account_existence_code"],
+            )
+        else:
+            # TODO set site['valid'] = False
+            print(
+                bcolors.RED
+                + "      !  ERROR: BAD CODE AND STRING. Neither the HTTP response code or detection "
+                "string worked." + bcolors.ENDC
+            )
+            overall_results[site["name"]] = (
+                "Bad detection code and string. Received Code: %s; Expected Code: %s."
+                % (str(r.status_code), site["account_existence_code"])
+            )
 
 if all_found_sites:
     print("Trying to capture screenshot(s) from the identified site(s) now.")
@@ -237,14 +345,13 @@ if all_found_sites:
     )
 
     try:
-        print(bcolors.GREEN + 'The screenshots will be stored in ' + bcolors.ENDC + bcolors.CYAN + image_directory + bcolors.ENDC)
         os.makedirs(image_directory)
     except OSError as e:
         if e.errno != errno.EEXIST:
             raise  # This was not a "directory exist" error..
 
     for site in all_found_sites:
-        print(bcolors.GREEN + "Capturing: ", site + bcolors.ENDC)
+        print(bcolors.GREEN + "Trying: ", site + bcolors.ENDC)
         filename = (
             remove_url.sub("", site)
             .replace("/", "")
