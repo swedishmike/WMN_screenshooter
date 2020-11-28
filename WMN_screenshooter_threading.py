@@ -56,13 +56,6 @@ parser = argparse.ArgumentParser(
     "username using the JSON file and will attempt to take a screenshot of any profile pages that are identified."
 )
 parser.add_argument(
-    "-s",
-    "--site",
-    nargs="*",
-    help="[OPTIONAL] If this parameter is passed"
-    "the script will check only the named site or list of sites.",
-)
-parser.add_argument(
     "-u",
     "--username",
     help="This is the username that will be used to check" "against.",
@@ -73,6 +66,18 @@ parser.add_argument(
     "--config",
     help="The full path to the web_accounts_list.json file",
     required=True,
+)
+parser.add_argument(
+    "-t",
+    "--timeout",
+    help="The amount of seconds the script will wait for a site to respond.",
+    default=10,
+)
+parser.add_argument(
+    "-n",
+    "--num-threads",
+    help="The amount concurrent threads the program will use to poll sites etc.",
+    default=10,
 )
 args = parser.parse_args()
 
@@ -110,6 +115,7 @@ if check_os() == "posix":
 
 # if we are windows or something like that then define colors as nothing
 else:
+
     class bcolors:
         CYAN = ""
         GREEN = ""
@@ -134,7 +140,11 @@ def web_call(location):
     try:
         # Make web request for that URL, timeout in X secs and don't verify SSL/TLS certs
         resp = requests.get(
-            location, headers=headers, timeout=10, verify=False, allow_redirects=False, 
+            location,
+            headers=headers,
+            timeout=args.timeout,
+            verify=False,
+            allow_redirects=False,
         )
     except requests.exceptions.Timeout:
         return (
@@ -155,7 +165,7 @@ def web_call(location):
 
 
 def read_in_the_json_file(filelocation):
-# Attempt to read in the JSON file
+    # Attempt to read in the JSON file
     try:
         with open(filelocation) as data_file:
             data = json.load(data_file)
@@ -164,7 +174,8 @@ def read_in_the_json_file(filelocation):
         print(bcolors.RED + " Exiting...." + bcolors.ENDC)
         sys.exit(1)
 
-    return(data)
+    return data
+
 
 def validate_site(site):
     code_match, string_match = False, False
@@ -192,7 +203,7 @@ def validate_site(site):
     if isinstance(r, str):
         # We got an error on the web call
         print(r)
-    
+
     else:
         # Analyze the responses against what they should be
         code_match = r.status_code == int(site["account_existence_code"])
@@ -204,19 +215,25 @@ def validate_site(site):
                 all_found_sites.append(url)
                 # continue
 
+
 def set_up_threads_sitechecks(data):
-    for site in data['sites']:
+    for site in data["sites"]:
         x = threading.Thread(target=validate_site, args=(site,))
         threads_sites.append(x)
-    
+
     for thread in threads_sites:
         thread.start()
 
     for thread in threads_sites:
         thread.join()
 
+
 def grab_screenshots(all_found_sites):
-    print(bcolors.GREEN + "\nTrying to capture screenshot(s) from the identified site(s) now." + bcolors.ENDC)
+    print(
+        bcolors.GREEN
+        + "\nTrying to capture screenshot(s) from the identified site(s) now."
+        + bcolors.ENDC
+    )
     options = webdriver.ChromeOptions()
     options.add_argument("headless")
     options.add_argument("window-size=1920x1080")
@@ -227,7 +244,14 @@ def grab_screenshots(all_found_sites):
     )
 
     try:
-        print(bcolors.GREEN + 'The screenshots will be stored in ' + bcolors.ENDC + bcolors.CYAN + image_directory + bcolors.ENDC)
+        print(
+            bcolors.GREEN
+            + "The screenshots will be stored in "
+            + bcolors.ENDC
+            + bcolors.CYAN
+            + image_directory
+            + bcolors.ENDC
+        )
         os.makedirs(image_directory)
     except OSError as e:
         if e.errno != errno.EEXIST:
@@ -251,24 +275,25 @@ def grab_screenshots(all_found_sites):
 
 
 def main():
-    print('Would have started the program now')
+    print("Would have started the program now")
 
     # Add this in case user presses CTRL-C
     signal.signal(signal.SIGINT, signal_handler)
 
     # Suppress HTTPS warnings
     requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
-    
+
     # Read in the Json file with site definitions
     data = read_in_the_json_file(args.config)
-    
+
     # Create the threads to check all the sites
     set_up_threads_sitechecks(data)
 
     if all_found_sites:
         grab_screenshots(all_found_sites)
     else:
-        print(bcolors.YELLOW + 'No sites found' + bcolors.ENDC)
+        print(bcolors.YELLOW + "No sites found" + bcolors.ENDC)
+
 
 if __name__ == "__main__":
     main()

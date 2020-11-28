@@ -33,3 +33,5 @@ When you run the script you need to specify the full path to the Json file from 
 If you do want some speed added to the process you can use the threading version of the program as per:
 
 `python3 ./WMN_screenshooter_threading.py -c /opt/WhatsMyName/web_accounts_list.json -u covfefe`
+
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
