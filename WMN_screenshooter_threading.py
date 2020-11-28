@@ -4,6 +4,7 @@
     Author : Micah Hoffman (@WebBreacher)
     Additions by: Mike Eriksson (@swedishmike)
     Description : Takes each username from the web_accounts_list.json file and performs the lookup to see if the entry is still valid and tries to take a screenshot of the valid ones. 
+                  This is the threading version.
 
 """
 import argparse
@@ -17,13 +18,15 @@ import sys
 import time
 import re
 import errno
+import threading
 from selenium import webdriver
 from time import sleep
 from datetime import datetime
 
 import requests
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
-
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
 
 ###################
 # Variables && Functions
@@ -40,6 +43,12 @@ remove_url = re.compile(r"https?://?")
 
 # Create an empty list to hold the successful results
 all_found_sites = []
+
+# Create an empty list to hold our threads for profile checking
+threads_sites = []
+
+# Create an empty list to hold the identified URL's that will have screenshots taken
+threads_screenshots = []
 
 # Parse command line input
 parser = argparse.ArgumentParser(
@@ -101,7 +110,6 @@ if check_os() == "posix":
 
 # if we are windows or something like that then define colors as nothing
 else:
-
     class bcolors:
         CYAN = ""
         GREEN = ""
@@ -119,7 +127,6 @@ else:
 
 def signal_handler(*_):
     print(bcolors.RED + " !!!  You pressed Ctrl+C. Exiting script." + bcolors.ENDC)
-    finaloutput()
     sys.exit(0)
 
 
@@ -127,7 +134,7 @@ def web_call(location):
     try:
         # Make web request for that URL, timeout in X secs and don't verify SSL/TLS certs
         resp = requests.get(
-            location, headers=headers, timeout=60, verify=False, allow_redirects=False
+            location, headers=headers, timeout=10, verify=False, allow_redirects=False, 
         )
     except requests.exceptions.Timeout:
         return (
@@ -147,41 +154,19 @@ def web_call(location):
         return resp
 
 
-def finaloutput():
-    if len(overall_results) > 0:
-        print("------------")
-        print('The following previously "valid" sites had errors:')
-        for site_with_error, results in sorted(overall_results.items()):
-            print(
-                bcolors.YELLOW
-                + "     %s --> %s" % (site_with_error, results)
-                + bcolors.ENDC
-            )
-    else:
-        print(":) No problems with the JSON file were found.")
-
-
-###################
-# Main
-###################
-
-# Add this in case user presses CTRL-C
-signal.signal(signal.SIGINT, signal_handler)
-
-# Suppress HTTPS warnings
-requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
-
+def read_in_the_json_file(filelocation):
 # Attempt to read in the JSON file
-try:
-    with open(args.config) as data_file:
-        data = json.load(data_file)
-except:
-    print(bcolors.RED + " Could not find the JSON file", args.config + bcolors.ENDC)
-    print(bcolors.RED + " Exiting...." + bcolors.ENDC)
-    sys.exit(1)
+    try:
+        with open(filelocation) as data_file:
+            data = json.load(data_file)
+    except:
+        print(bcolors.RED + " Could not find the JSON file", args.config + bcolors.ENDC)
+        print(bcolors.RED + " Exiting...." + bcolors.ENDC)
+        sys.exit(1)
 
+    return(data)
 
-for site in data["sites"]:
+def validate_site(site):
     code_match, string_match = False, False
     # Examine the current validity of the entry
     if not site["valid"]:
@@ -190,43 +175,48 @@ for site in data["sites"]:
             + " *  Skipping %s - Marked as not valid." % site["name"]
             + bcolors.ENDC
         )
-        continue
     if not site["known_accounts"][0]:
         print(
             bcolors.CYAN
             + " *  Skipping %s - No valid user names to test." % site["name"]
             + bcolors.ENDC
         )
-        continue
 
-    # Perform initial lookup
-    # Pull the first user from known_accounts and replace the {account} with it
-    url_list = []
+    # # Perform initial lookup
+    # # Pull the first user from known_accounts and replace the {account} with it
     url = site["check_uri"].replace("{account}", args.username)
-    url_list.append(url)
     uname = args.username
 
-    for each in url_list:
-        print(" -  Looking up %s" % each)
-        r = web_call(each)
-        if isinstance(r, str):
-            # We got an error on the web call
-            print(r)
-            continue
-
+    # print(" -  Looking up %s" % url)
+    r = web_call(url)
+    if isinstance(r, str):
+        # We got an error on the web call
+        print(r)
+    
+    else:
         # Analyze the responses against what they should be
         code_match = r.status_code == int(site["account_existence_code"])
         string_match = r.text.find(site["account_existence_string"]) >= 0
 
         if args.username:
             if code_match and string_match:
-                print(bcolors.GREEN + "[+] Found user at %s" % each + bcolors.ENDC)
-                all_found_sites.append(each)
-            continue
+                print(bcolors.GREEN + "[+] Found user at %s" % url + bcolors.ENDC)
+                all_found_sites.append(url)
+                # continue
 
+def set_up_threads_sitechecks(data):
+    for site in data['sites']:
+        x = threading.Thread(target=validate_site, args=(site,))
+        threads_sites.append(x)
+    
+    for thread in threads_sites:
+        thread.start()
 
-if all_found_sites:
-    print("Trying to capture screenshot(s) from the identified site(s) now.")
+    for thread in threads_sites:
+        thread.join()
+
+def grab_screenshots(all_found_sites):
+    print(bcolors.GREEN + "\nTrying to capture screenshot(s) from the identified site(s) now." + bcolors.ENDC)
     options = webdriver.ChromeOptions()
     options.add_argument("headless")
     options.add_argument("window-size=1920x1080")
@@ -258,3 +248,27 @@ if all_found_sites:
         driver.get_screenshot_as_file(image_directory + "/" + filename)
 
     driver.close()
+
+
+def main():
+    print('Would have started the program now')
+
+    # Add this in case user presses CTRL-C
+    signal.signal(signal.SIGINT, signal_handler)
+
+    # Suppress HTTPS warnings
+    requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+    
+    # Read in the Json file with site definitions
+    data = read_in_the_json_file(args.config)
+    
+    # Create the threads to check all the sites
+    set_up_threads_sitechecks(data)
+
+    if all_found_sites:
+        grab_screenshots(all_found_sites)
+    else:
+        print(bcolors.YELLOW + 'No sites found' + bcolors.ENDC)
+
+if __name__ == "__main__":
+    main()

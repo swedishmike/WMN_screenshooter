@@ -29,3 +29,7 @@ This should install all necessary dependencies. It could be recommended to try a
 When you run the script you need to specify the full path to the Json file from WhatsMyName, including the filename, as well as the username you're investigating as per this:
 
 `python3 ./WMN_screenshooter.py -c /opt/WhatsMyName/web_accounts_list.json -u covfefe`
+
+If you do want some speed added to the process you can use the threading version of the program as per:
+
+`python3 ./WMN_screenshooter_threading.py -c /opt/WhatsMyName/web_accounts_list.json -u covfefe`
