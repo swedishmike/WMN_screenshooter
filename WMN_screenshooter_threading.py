@@ -8,14 +8,10 @@
 
 """
 import argparse
-import codecs
 import json
 import os
-import random
 import signal
-import string
 import sys
-import time
 import re
 import errno
 import threading
@@ -25,8 +21,6 @@ from datetime import datetime
 
 import requests
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
-from requests.adapters import HTTPAdapter
-from requests.packages.urllib3.util.retry import Retry
 
 ###################
 # Variables && Functions
