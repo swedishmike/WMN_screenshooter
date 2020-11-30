@@ -30,8 +30,10 @@ When you run the script you need to specify the full path to the Json file from 
 
 `python3 ./WMN_screenshooter.py -c /opt/WhatsMyName/web_accounts_list.json -u covfefe`
 
-If you do want some speed added to the process you can use the threading version of the program as per:
+There are two more settings that you can use when you launch the script. You can adjust the number of threads that are being used as well as how long the timeout should be for each request. This can be useful in case of issues with bandwidth, your DNS server being swamped and so on.
 
-`python3 ./WMN_screenshooter_threading.py -c /opt/WhatsMyName/web_accounts_list.json -u covfefe`
+The number of threads is set by using the -n / --num-threads parameter and the timeout, in seconds, are set by the -t / --timeout parameter. The example below sets a maximum of 25 threads with a 5 second timeout.
+
+`python3 ./WMN_screenshooter.py -c /opt/WhatsMyName/web_accounts_list.json -u covfefe -n 25 -t 5`
 
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
