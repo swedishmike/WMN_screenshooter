@@ -18,6 +18,7 @@ import threading
 from queue import Queue
 from threading import Thread
 from selenium import webdriver
+from selenium.common.exceptions import TimeoutException
 from time import sleep
 from datetime import datetime
 
@@ -241,6 +242,7 @@ def grab_screenshots(all_found_sites):
     options.add_argument("headless")
     options.add_argument("window-size=1920x1080")
     driver = webdriver.Chrome(options=options)
+    driver.set_page_load_timeout(args.timeout)
 
     image_directory = os.path.join(
         os.getcwd(), datetime.now().strftime("%Y-%m-%d_%H%M%S") + "_" + args.username
@@ -270,9 +272,15 @@ def grab_screenshots(all_found_sites):
             .replace("~", "")
             + ".png"
         )
-        driver.get(site)
-        sleep(2)
-        driver.get_screenshot_as_file(image_directory + "/" + filename)
+        try:
+            driver.get(site)
+            sleep(2)
+            driver.get_screenshot_as_file(image_directory + "/" + filename)
+        except TimeoutException as e:
+            print(
+                bcolors.RED + "Timed out when trying to reach: " + site + bcolors.ENDC
+            )
+            continue
 
     driver.close()
 
