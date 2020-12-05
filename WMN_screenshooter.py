@@ -4,8 +4,6 @@
     Author : Micah Hoffman (@WebBreacher)
     Additions by: Mike Eriksson (@swedishmike)
     Description : Takes each username from the web_accounts_list.json file and performs the lookup to see if the entry is still valid and tries to take a screenshot of the valid ones. 
-                  This is the threading version.
-
 """
 import argparse
 import json
