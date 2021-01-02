@@ -13,6 +13,7 @@ import sys
 import re
 import errno
 import threading
+from rich import print
 from queue import Queue
 from threading import Thread
 from selenium import webdriver
@@ -129,7 +130,7 @@ else:
 
 def signal_handler(*_):
     print(bcolors.RED + " !!!  You pressed Ctrl+C. Exiting script." + bcolors.ENDC)
-    sys.exit(0)
+    sys.exit(130)
 
 
 def web_call(location):
@@ -165,9 +166,15 @@ def read_in_the_json_file(filelocation):
     try:
         with open(filelocation) as data_file:
             data = json.load(data_file)
-    except:
-        print(bcolors.RED + " Could not find the JSON file", args.config + bcolors.ENDC)
-        print(bcolors.RED + " Exiting...." + bcolors.ENDC)
+    except FileNotFoundError:
+        print(f"[bold red] Could not find the JSON file - {filelocation} [/bold red]")
+        print("[bold red] Exiting....[/bold red]")
+        sys.exit(1)
+    except json.decoder.JSONDecodeError:
+        print(
+            "[bold red] The Json configuration file did not parse correctly.[/bold red]"
+        )
+        print("[bold red] Exiting....[/bold red]")
         sys.exit(1)
 
     return data
