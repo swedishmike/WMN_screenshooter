@@ -12,7 +12,6 @@ import signal
 import sys
 import re
 import errno
-import threading
 from rich import print
 from queue import Queue
 from threading import Thread
@@ -82,54 +81,8 @@ all_found_sites = []
 site_queue = Queue()
 
 
-def check_os():
-    if os.name == "nt":
-        operating_system = "windows"
-    if os.name == "posix":
-        operating_system = "posix"
-    return operating_system
-
-
-#
-# Class for colors
-#
-if check_os() == "posix":
-
-    class bcolors:
-        CYAN = "\033[96m"
-        GREEN = "\033[92m"
-        YELLOW = "\033[93m"
-        RED = "\033[91m"
-        ENDC = "\033[0m"
-
-        def disable(self):
-            self.CYAN = ""
-            self.GREEN = ""
-            self.YELLOW = ""
-            self.RED = ""
-            self.ENDC = ""
-
-
-# if we are windows or something like that then define colors as nothing
-else:
-
-    class bcolors:
-        CYAN = ""
-        GREEN = ""
-        YELLOW = ""
-        RED = ""
-        ENDC = ""
-
-        def disable(self):
-            self.CYAN = ""
-            self.GREEN = ""
-            self.YELLOW = ""
-            self.RED = ""
-            self.ENDC = ""
-
-
 def signal_handler(*_):
-    print(bcolors.RED + " !!!  You pressed Ctrl+C. Exiting script." + bcolors.ENDC)
+    print("[bold red] !!!  You pressed Ctrl+C. Exiting script.[/bold red]")
     sys.exit(130)
 
 
@@ -144,19 +97,11 @@ def web_call(location):
             allow_redirects=False,
         )
     except requests.exceptions.Timeout:
-        return (
-            bcolors.RED
-            + "      ! ERROR: CONNECTION TIME OUT. Try increasing the timeout delay."
-            + bcolors.ENDC
-        )
+        return "[bold red]      ! ERROR: CONNECTION TIME OUT. Try increasing the timeout delay.[/bold red]"
     except requests.exceptions.TooManyRedirects:
-        return (
-            bcolors.RED
-            + "      ! ERROR: TOO MANY REDIRECTS. Try changing the URL."
-            + bcolors.ENDC
-        )
+        return "[bold red]      ! ERROR: TOO MANY REDIRECTS. Try changing the URL.[/bold red]"
     except requests.exceptions.RequestException as e:
-        return bcolors.RED + "      ! ERROR: CRITICAL ERROR. %s" % e + bcolors.ENDC
+        return "[bold red]      ! ERROR: CRITICAL ERROR." + e + "[/bold red]"
     else:
         return resp
 
@@ -182,7 +127,6 @@ def read_in_the_json_file(filelocation):
 
 def validate_site(i, site_queue):
     code_match, string_match = False, False
-    uname = args.username
 
     while True:
         site = site_queue.get()
@@ -199,7 +143,7 @@ def validate_site(i, site_queue):
 
             if args.username:
                 if code_match and string_match:
-                    print(bcolors.GREEN + "[+] Found user at %s" % url + bcolors.ENDC)
+                    print(f"[bold green][+] Found user at {url}[/bold green]")
                     all_found_sites.append(url)
                     # continue
         site_queue.task_done()
@@ -221,16 +165,12 @@ def queues_and_threads(data):
     for site in data["sites"]:
         if not site["valid"]:
             print(
-                bcolors.CYAN
-                + " *  Skipping %s - Marked as not valid." % site["name"]
-                + bcolors.ENDC
+                f"[bold cyan] *  Skipping {site['name']} - Marked as not valid.[/bold cyan]"
             )
             continue
         if not site["known_accounts"][0]:
             print(
-                bcolors.CYAN
-                + " *  Skipping %s - No valid user names to test." % site["name"]
-                + bcolors.ENDC
+                f"[bold cyan] *  Skipping {site['name']} - No valid user names to test.[/bold cyan]"
             )
             continue
         site_queue.put(site)
@@ -239,9 +179,7 @@ def queues_and_threads(data):
 
 def grab_screenshots(all_found_sites):
     print(
-        bcolors.GREEN
-        + "\nTrying to capture screenshot(s) from the identified site(s) now."
-        + bcolors.ENDC
+        "[bold green]\nTrying to capture screenshot(s) from the identified site(s) now.[/bold green]"
     )
     options = webdriver.ChromeOptions()
     options.add_argument("headless")
@@ -255,12 +193,7 @@ def grab_screenshots(all_found_sites):
 
     try:
         print(
-            bcolors.GREEN
-            + "The screenshots will be stored in "
-            + bcolors.ENDC
-            + bcolors.CYAN
-            + image_directory
-            + bcolors.ENDC
+            f"[bold green]The screenshots will be stored in [/bold green][bold cyan]{image_directory}[/bold cyan]"
         )
         os.makedirs(image_directory)
     except OSError as e:
@@ -268,7 +201,7 @@ def grab_screenshots(all_found_sites):
             raise  # This was not a "directory exist" error..
 
     for site in all_found_sites:
-        print(bcolors.GREEN + "Capturing: ", site + bcolors.ENDC)
+        print(f"[bold green]Capturing: {site}[/bold green]")
         filename = (
             remove_url.sub("", site)
             .replace("/", "")
@@ -282,11 +215,8 @@ def grab_screenshots(all_found_sites):
             sleep(2)
             driver.get_screenshot_as_file(image_directory + "/" + filename)
         except TimeoutException as e:
-            print(
-                bcolors.RED + "Timed out when trying to reach: " + site + bcolors.ENDC
-            )
+            print(f"[bold red]Timed out when trying to reach: {site}[/bold red]")
             continue
-
     driver.close()
 
 
@@ -307,7 +237,7 @@ def main():
     if all_found_sites:
         grab_screenshots(all_found_sites)
     else:
-        print(bcolors.YELLOW + "No sites found" + bcolors.ENDC)
+        print("[bold yellow]No sites found[/bold yellow]")
 
 
 if __name__ == "__main__":
