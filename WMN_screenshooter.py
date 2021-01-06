@@ -116,9 +116,7 @@ def read_in_the_json_file(filelocation):
         print("[bold red] Exiting....[/bold red]")
         sys.exit(1)
     except json.decoder.JSONDecodeError:
-        print(
-            "[bold red] The Json configuration file did not parse correctly.[/bold red]"
-        )
+        print("[bold red] The Json configuration file did not parse correctly.[/bold red]")
         print("[bold red] Exiting....[/bold red]")
         sys.exit(1)
 
@@ -164,9 +162,7 @@ def queues_and_threads(data):
     # Validating the data in the json file so we only try sites that are valid
     for site in data["sites"]:
         if not site["valid"]:
-            print(
-                f"[bold cyan] *  Skipping {site['name']} - Marked as not valid.[/bold cyan]"
-            )
+            print(f"[bold cyan] *  Skipping {site['name']} - Marked as not valid.[/bold cyan]")
             continue
         if not site["known_accounts"][0]:
             print(
