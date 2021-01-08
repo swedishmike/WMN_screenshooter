@@ -229,7 +229,7 @@ def main():
     # Create the threads and queues to check all the sites
     queues_and_threads(data)
 
-    # Check if there's any sites to screemshot - if there are, screenshot them.
+    # Check if there's any sites to take a screenshot of - if there are, take it.
     if all_found_sites:
         grab_screenshots(all_found_sites)
     else:
