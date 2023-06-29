@@ -59,6 +59,14 @@ parser.add_argument(
 
 args = parser.parse_args()
 
+# Set HTTP Header info.
+headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.5",
+    "Accept-Encoding": "gzip, deflate",
+}
+
 # Regular expression to remove http/https from sites to use in filenames
 remove_url = re.compile(r"https?://?")
 
@@ -69,6 +77,7 @@ num_of_threads = args.num_threads
 all_found_sites = []
 
 
+
 # Set up the queue of sites to query
 site_queue = Queue()
 
@@ -76,22 +85,6 @@ site_queue = Queue()
 def signal_handler(*_):
     print("[bold red] !!!  You pressed Ctrl+C. Exiting script.[/bold red]")
     sys.exit(130)
-
-
-def read_in_the_useragents():
-    user_agent_list = []
-    try:
-        with open("useragent_list.txt") as user_agents:
-            for line in user_agents:
-                user_agent_list.append(line.strip())
-        return user_agent_list
-
-    except:
-        print(
-            f"[bold red] Could not find the user agent file - useragent_list.txt [/bold red]"
-        )
-        print("[bold red] Exiting....[/bold red]")
-        sys.exit(1)
 
 
 def read_in_the_json_file(filelocation):
@@ -111,19 +104,63 @@ def read_in_the_json_file(filelocation):
         sys.exit(1)
     return data
 
+def validate_site(i, site_queue):
+    code_match, string_match = False, False
+
+    while True:
+        site = site_queue.get()
+        url = site["uri_check"].replace("{account}", args.username)
+        r = web_call(url)
+        if isinstance(r, str):
+            # We got an error on the web call
+            print(r)
+
+        else:
+            # Analyze the responses against what they should be
+            code_match = r.status_code == int(site["e_code"])
+            string_match = r.text.find(site["e_string"]) >= 0
+
+            if args.username:
+                if code_match and string_match:
+                    print(f"[bold green][+] Found user at {url}[/bold green]")
+                    all_found_sites.append(url)
+                    # continue
+        site_queue.task_done()
+
+
+def web_call(location):
+    try:
+        # Make web request for that URL, timeout in X secs and don't verify SSL/TLS certs
+        resp = requests.get(
+            location,
+            headers=headers,
+            timeout=args.timeout,
+            verify=False,
+            allow_redirects=False,
+        )
+    except requests.exceptions.Timeout:
+        return "[bold red]      ! ERROR: CONNECTION TIME OUT. Try increasing the timeout delay.[/bold red]"
+    except requests.exceptions.TooManyRedirects:
+        return "[bold red]      ! ERROR: TOO MANY REDIRECTS. Try changing the URL.[/bold red]"
+    except requests.exceptions.RequestException as e:
+        return "[bold red]      ! ERROR: CRITICAL ERROR." + e + "[/bold red]"
+    else:
+        return resp
+
+
 
 def queues_and_threads(sitelist):
     # Setting up the threads, ready to query URL's.
-    # for i in range(num_of_threads):
-    #     worker = Thread(
-    #         target=validate_site,
-    #         args=(
-    #             i,
-    #             site_queue,
-    #         ),
-    #     )
-    #     worker.setDaemon(True)
-    #     worker.start()
+    for i in range(num_of_threads):
+        worker = Thread(
+            target=validate_site,
+            args=(
+                i,
+                site_queue,
+            ),
+        )
+        worker.setDaemon(True)
+        worker.start()
     # Validating the data in the json file so we only try sites that are valid
     for site in sitelist["sites"]:
         if not site["valid"]:
@@ -148,9 +185,6 @@ def queues_and_threads(sitelist):
 def main():
     # Add this in case user presses CTRL-C
     signal.signal(signal.SIGINT, signal_handler)
-
-    # Read in the user agent strings
-    user_agent_list = read_in_the_useragents()
 
     # Read in the sitelist
     sitelist = read_in_the_json_file(args.config)
