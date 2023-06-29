@@ -1,6 +1,6 @@
 # WMN_screenshooter
 
-This is a helper script that makes use of the great [WhatsMyName](https://github.com/WebBreacher/WhatsMyName) project and adds a bit more functionality to one of the demo scripts that are provided there.
+This is a helper script that makes use of the great [WhatsMyName](https://github.com/WebBreacher/WhatsMyName) project and adds a bit more functionality to one of the demo scripts that were provided there.
 
 This script is based on the `web_accounts_list_checker.py` script that [WebBreacher](https://github.com/WebBreacher) provided, with some of my own additions.
 

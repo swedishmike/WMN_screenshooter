@@ -1,5 +1,7 @@
 """
-This is a complete re-build of the client or at least that's the idea
+    Initial author : Micah Hoffman (@WebBreacher)
+    Additions by: Mike Eriksson (@swedishmike)
+    Description : Takes each username from the wmn-data.json file and performs the lookup to see if the entry is still valid and tries to take a screenshot of the valid ones that matches the username. 
 """
 
 import argparse
@@ -7,6 +9,7 @@ import os
 import signal
 import sys
 import json
+import re
 from queue import Queue
 from threading import Thread
 from rich import print
@@ -56,6 +59,19 @@ parser.add_argument(
 
 args = parser.parse_args()
 
+# Regular expression to remove http/https from sites to use in filenames
+remove_url = re.compile(r"https?://?")
+
+# Set up the number of threads available
+num_of_threads = args.num_threads
+
+# Create an empty list to hold the successful results
+all_found_sites = []
+
+
+# Set up the queue of sites to query
+site_queue = Queue()
+
 
 def signal_handler(*_):
     print("[bold red] !!!  You pressed Ctrl+C. Exiting script.[/bold red]")
@@ -96,6 +112,39 @@ def read_in_the_json_file(filelocation):
     return data
 
 
+def queues_and_threads(sitelist):
+    # Setting up the threads, ready to query URL's.
+    # for i in range(num_of_threads):
+    #     worker = Thread(
+    #         target=validate_site,
+    #         args=(
+    #             i,
+    #             site_queue,
+    #         ),
+    #     )
+    #     worker.setDaemon(True)
+    #     worker.start()
+    # Validating the data in the json file so we only try sites that are valid
+    for site in sitelist["sites"]:
+        if not site["valid"]:
+            print(
+                f"[bold cyan] *  Skipping {site['name']} - Marked as not valid.[/bold cyan]"
+            )
+            continue
+        if not site["known"][0]:
+            print(
+                f"[bold cyan] *  Skipping {site['name']} - No valid user names to test.[/bold cyan]"
+            )
+            continue
+        if not args.xxx and site["cat"] == "XXXPORNXXX":
+            print(
+                f"[bold cyan] *  Skipping {site['name']} - category is XXXPORNXXX and you're running the script without the -x/-xxx parameter.[/bold cyan]"
+            )
+            continue
+        site_queue.put(site)
+    site_queue.join()
+
+
 def main():
     # Add this in case user presses CTRL-C
     signal.signal(signal.SIGINT, signal_handler)
@@ -108,6 +157,9 @@ def main():
 
     # Suppress HTTPS warnings
     requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+
+    # Set up the threads and queues
+    queues_and_threads(sitelist)
 
 
 if __name__ == "__main__":
