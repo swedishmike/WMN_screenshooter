@@ -12,8 +12,6 @@ If there are any hits it will then try and create screenshots of those profile p
 
 ## Pre-requsities
 
-* A working installation of [Selenium Web Driver](https://www.selenium.dev/documentation/en/) complete with the Chrome driver. The Chrome driver needs to be a in a directory where the Python 3 interpreter you are using can find it. 
-
 * A copy of, at least, the `wmn-data.json` file from the [WhatsMyName](https://github.com/WebBreacher/WhatsMyName) project.
 
 ## Installation 
