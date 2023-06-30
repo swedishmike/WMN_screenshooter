@@ -9,11 +9,13 @@ import os
 import signal
 import sys
 import json
+import time
 import re
 from queue import Queue
 from threading import Thread
 from rich import print
-
+from selenium import webdriver
+from selenium.webdriver.common.by import By
 
 import requests
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
@@ -77,7 +79,6 @@ num_of_threads = args.num_threads
 all_found_sites = []
 
 
-
 # Set up the queue of sites to query
 site_queue = Queue()
 
@@ -103,6 +104,7 @@ def read_in_the_json_file(filelocation):
         print("[bold red] Exiting....[/bold red]")
         sys.exit(1)
     return data
+
 
 def validate_site(i, site_queue):
     code_match, string_match = False, False
@@ -139,14 +141,32 @@ def web_call(location):
             allow_redirects=False,
         )
     except requests.exceptions.Timeout:
-        return "[bold red]      ! ERROR: CONNECTION TIME OUT. Try increasing the timeout delay.[/bold red]"
+        return (
+            "[bold red]  "
+            + location
+            + "    ! ERROR: CONNECTION TIME OUT. Try increasing the timeout delay.[/bold red]"
+        )
     except requests.exceptions.TooManyRedirects:
-        return "[bold red]      ! ERROR: TOO MANY REDIRECTS. Try changing the URL.[/bold red]"
+        return (
+            "[bold red]  "
+            + location
+            + "    ! ERROR: TOO MANY REDIRECTS. Try changing the URL.[/bold red]"
+        )
     except requests.exceptions.RequestException as e:
-        return "[bold red]      ! ERROR: CRITICAL ERROR." + e + "[/bold red]"
+        return (
+            "[bold red]  "
+            + location
+            + "    ! ERROR: CRITICAL ERROR."
+            + str(e)
+            + "[/bold red]"
+        )
+    # # except ConnectionRefusedError as e:
+    #     return "[bold red]      ! ERROR: Connection refused. [/bold red]"
+    # except Exception as e:
+    #     return "[bold red]      ! ERROR: Connection refused. " + str(e) + "[/bold red]"
+
     else:
         return resp
-
 
 
 def queues_and_threads(sitelist):
@@ -159,7 +179,8 @@ def queues_and_threads(sitelist):
                 site_queue,
             ),
         )
-        worker.setDaemon(True)
+        worker.daemon = True
+        # worker.setDaemon(True)
         worker.start()
     # Validating the data in the json file so we only try sites that are valid
     for site in sitelist["sites"]:
@@ -194,6 +215,11 @@ def main():
 
     # Set up the threads and queues
     queues_and_threads(sitelist)
+
+    driver = webdriver.Chrome()
+    driver.get("https://www.google.com")
+    time.sleep(10)
+    driver.quit
 
 
 if __name__ == "__main__":
