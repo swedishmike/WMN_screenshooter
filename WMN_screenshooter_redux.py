@@ -16,9 +16,9 @@ from threading import Thread
 from rich import print
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-
-import requests
-from requests.packages.urllib3.exceptions import InsecureRequestWarning
+import httpx
+# import requests
+# from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
 
 # Parse command line input
@@ -124,7 +124,7 @@ def validate_site(i, site_queue):
 
             if args.username:
                 if code_match and string_match:
-                    print(f"[bold green][+] Found user at {url}[/bold green]")
+                    # print(f"[bold green][+] Found user at {url}[/bold green]")
                     all_found_sites.append(url)
                     # continue
         site_queue.task_done()
@@ -133,37 +133,16 @@ def validate_site(i, site_queue):
 def web_call(location):
     try:
         # Make web request for that URL, timeout in X secs and don't verify SSL/TLS certs
-        resp = requests.get(
+        resp = httpx.get(
             location,
             headers=headers,
             timeout=args.timeout,
             verify=False,
-            allow_redirects=False,
+            follow_redirects=False,
         )
-    except requests.exceptions.Timeout:
-        return (
-            "[bold red]  "
-            + location
-            + "    ! ERROR: CONNECTION TIME OUT. Try increasing the timeout delay.[/bold red]"
-        )
-    except requests.exceptions.TooManyRedirects:
-        return (
-            "[bold red]  "
-            + location
-            + "    ! ERROR: TOO MANY REDIRECTS. Try changing the URL.[/bold red]"
-        )
-    except requests.exceptions.RequestException as e:
-        return (
-            "[bold red]  "
-            + location
-            + "    ! ERROR: CRITICAL ERROR."
-            + str(e)
-            + "[/bold red]"
-        )
-    # # except ConnectionRefusedError as e:
-    #     return "[bold red]      ! ERROR: Connection refused. [/bold red]"
-    # except Exception as e:
-    #     return "[bold red]      ! ERROR: Connection refused. " + str(e) + "[/bold red]"
+    
+    except Exception as e:
+        return "[bold red] [!] ERROR " + location + " " + str(e) + "[/bold red]"
 
     else:
         return resp
@@ -211,7 +190,7 @@ def main():
     sitelist = read_in_the_json_file(args.config)
 
     # Suppress HTTPS warnings
-    requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+    # requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
     # Set up the threads and queues
     queues_and_threads(sitelist)
