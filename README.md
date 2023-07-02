@@ -12,7 +12,7 @@ If there are any hits it will then try and create screenshots of those profile p
 
 ## Pre-requsities
 
-* Python 3, I've tested this on version 3.9,7+.
+* Python 3, I've tested this on version 3.9.7+.
 * A copy of, at least, the `wmn-data.json` file from the [WhatsMyName](https://github.com/WebBreacher/WhatsMyName) project.
 
 ## Installation 
