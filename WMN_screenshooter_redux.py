@@ -5,20 +5,20 @@
 """
 
 import argparse
+import urllib3
 import os
 import signal
 import sys
 import json
-import time
 import re
 from queue import Queue
 from threading import Thread
 from rich import print
 from selenium import webdriver
 from selenium.webdriver.common.by import By
+from datetime import datetime
+from time import sleep
 import httpx
-# import requests
-# from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
 
 # Parse command line input
@@ -94,14 +94,16 @@ def read_in_the_json_file(filelocation):
         with open(filelocation) as data_file:
             data = json.load(data_file)
     except FileNotFoundError:
-        print(f"[bold red] Could not find the JSON file - {filelocation} [/bold red]")
-        print("[bold red] Exiting....[/bold red]")
+        print(
+            f"[bold red] [!] Could not find the JSON file - {filelocation} [/bold red]"
+        )
+        print("[bold red] [!] Exiting....[/bold red]")
         sys.exit(1)
     except json.decoder.JSONDecodeError:
         print(
-            "[bold red] The Json configuration file did not parse correctly.[/bold red]"
+            "[bold red] [!] The Json configuration file did not parse correctly.[/bold red]"
         )
-        print("[bold red] Exiting....[/bold red]")
+        print("[bold red] [!] Exiting....[/bold red]")
         sys.exit(1)
     return data
 
@@ -138,11 +140,10 @@ def web_call(location):
             headers=headers,
             timeout=args.timeout,
             verify=False,
-            follow_redirects=False,
         )
-    
+
     except Exception as e:
-        return "[bold red] [!] ERROR " + location + " " + str(e) + "[/bold red]"
+        return "[bold red] [!] ERROR " + location + " -> " + str(e) + "[/bold red]"
 
     else:
         return resp
@@ -159,27 +160,69 @@ def queues_and_threads(sitelist):
             ),
         )
         worker.daemon = True
-        # worker.setDaemon(True)
         worker.start()
     # Validating the data in the json file so we only try sites that are valid
     for site in sitelist["sites"]:
         if not site["valid"]:
             print(
-                f"[bold cyan] *  Skipping {site['name']} - Marked as not valid.[/bold cyan]"
+                f"[bold cyan] [*]  Skipping {site['name']} - Marked as not valid.[/bold cyan]"
             )
             continue
         if not site["known"][0]:
             print(
-                f"[bold cyan] *  Skipping {site['name']} - No valid user names to test.[/bold cyan]"
+                f"[bold cyan] [*]  Skipping {site['name']} - No valid user names to test.[/bold cyan]"
             )
             continue
         if not args.xxx and site["cat"] == "XXXPORNXXX":
             print(
-                f"[bold cyan] *  Skipping {site['name']} - category is XXXPORNXXX and you're running the script without the -x/-xxx parameter.[/bold cyan]"
+                f"[bold cyan] [*]  Skipping {site['name']} - category is XXXPORNXXX and you're running the script without the -x/-xxx parameter.[/bold cyan]"
             )
             continue
         site_queue.put(site)
     site_queue.join()
+
+
+def grab_screenshots(all_found_sites):
+    print(
+        "[bold green]\n [-] Trying to capture screenshot(s) from the identified site(s) now.[/bold green]"
+    )
+    options = webdriver.ChromeOptions()
+    options.add_argument("headless")
+    options.add_argument("window-size=1920x1080")
+    driver = webdriver.Chrome(options=options)
+    driver.set_page_load_timeout(args.timeout)
+
+    image_directory = os.path.join(
+        os.getcwd(), datetime.now().strftime("%Y-%m-%d_%H%M%S") + "_" + args.username
+    )
+
+    try:
+        print(
+            f"[bold green] [-] The screenshots will be stored in [/bold green][bold cyan]{image_directory}[/bold cyan]"
+        )
+        os.makedirs(image_directory)
+    except OSError as e:
+        if e.errno != errno.EEXIST:
+            raise  # This was not a "directory exist" error..
+
+    for site in all_found_sites:
+        print(f"[bold green] [-] Capturing: {site}[/bold green]")
+        filename = (
+            remove_url.sub("", site)
+            .replace("/", "")
+            .replace("@", "")
+            .replace("?", "")
+            .replace("~", "")
+            + ".png"
+        )
+        try:
+            driver.get(site)
+            sleep(2)
+            driver.get_screenshot_as_file(image_directory + "/" + filename)
+        except TimeoutException as e:
+            print(f"[bold red] [!] Timed out when trying to reach: {site}[/bold red]")
+            continue
+    driver.close()
 
 
 def main():
@@ -190,15 +233,15 @@ def main():
     sitelist = read_in_the_json_file(args.config)
 
     # Suppress HTTPS warnings
-    # requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
-
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
     # Set up the threads and queues
     queues_and_threads(sitelist)
 
-    driver = webdriver.Chrome()
-    driver.get("https://www.google.com")
-    time.sleep(10)
-    driver.quit
+    # Check if there's any sites to take a screenshot of - if there are, take it.
+    if all_found_sites:
+        grab_screenshots(all_found_sites)
+    else:
+        print("[bold yellow] [:(] No sites found[/bold yellow]")
 
 
 if __name__ == "__main__":
