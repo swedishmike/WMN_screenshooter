@@ -6,7 +6,6 @@
 
 import argparse
 import urllib3
-import os
 import signal
 import sys
 import json
@@ -16,6 +15,7 @@ from threading import Thread
 from rich import print
 from selenium import webdriver
 from datetime import datetime
+from pathlib import Path
 from time import sleep
 import httpx
 
@@ -191,15 +191,22 @@ def grab_screenshots(all_found_sites):
     driver = webdriver.Chrome(options=options)
     driver.set_page_load_timeout(args.timeout)
 
-    image_directory = os.path.join(
-        os.getcwd(), datetime.now().strftime("%Y-%m-%d_%H%M%S") + "_" + args.username
+    # eml_out = Path(Path.cwd() / "emls")
+
+    # eml_out = Path(Path.cwd() / "emls")
+
+    image_directory = Path(
+        Path.cwd() / (datetime.now().strftime("%Y-%m-%d_%H%M%S") + "_" + args.username)
     )
 
     try:
         print(
             f"[bold green] [-] The screenshots will be stored in [/bold green][bold cyan]{image_directory}[/bold cyan]"
         )
-        os.makedirs(image_directory)
+        if not image_directory.exists():
+            image_directory.mkdir()
+
+        # os.makedirs(image_directory)
     except OSError as e:
         if e.errno != errno.EEXIST:
             raise  # This was not a "directory exist" error..
@@ -217,7 +224,7 @@ def grab_screenshots(all_found_sites):
         try:
             driver.get(site)
             sleep(2)
-            driver.get_screenshot_as_file(image_directory + "/" + filename)
+            driver.get_screenshot_as_file(str(image_directory) + "/" + filename)
         except TimeoutException as e:
             print(f"[bold red] [!] Timed out when trying to reach: {site}[/bold red]")
             continue
