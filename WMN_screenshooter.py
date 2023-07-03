@@ -15,7 +15,6 @@ from queue import Queue
 from threading import Thread
 from rich import print
 from selenium import webdriver
-from selenium.webdriver.common.by import By
 from datetime import datetime
 from time import sleep
 import httpx
