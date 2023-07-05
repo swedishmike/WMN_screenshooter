@@ -14,6 +14,7 @@ from queue import Queue
 from threading import Thread
 from rich import print
 from selenium import webdriver
+from selenium.common.exceptions import TimeoutException
 from datetime import datetime
 from pathlib import Path
 from time import sleep
